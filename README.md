@@ -41,7 +41,7 @@ AMIGO CLI is a modular, terminal-based AI assistant designed to bridge conversat
                 v                             v                             v
    +------------+------------+   +------------+------------+   +------------+------------+
    |   Task Difficulty Router|   |   Local Document Context|   | Dynamic Session & Memory|
-   | (Single Agent vs Multi) |   |    (`my_files` Loader)   |   |     Persistence Engine    |
+   | (Single Agent vs Multi) |   |                         |   |     Persistence Engine  |
    +------------+------------+   +------------+------------+   +------------+------------+
                 |                             |                             |
                 +-----------------------------+-----------------------------+
@@ -55,13 +55,13 @@ AMIGO CLI is a modular, terminal-based AI assistant designed to bridge conversat
                                               v
                                 +-------------+-------------+
                                 |    MCP Tool Registry      |
-                                | (Playwright, FS, Time)    |
+                                |                           |
                                 +-------------+-------------+
                                               |
                                               v
                                 +-------------+-------------+
                                 |  Guarded Output Sandbox   |
-                                |    (`model_out_dir/`)     |
+                                |                           |
                                 +---------------------------+
 ```
 
@@ -71,14 +71,14 @@ AMIGO CLI is a modular, terminal-based AI assistant designed to bridge conversat
 
 AMIGO CLI enforces an explicit access boundary:
 
-| Directory        | Scope & Permissions       | Purpose                                                                                   |
-| :--------------- | :------------------------ | :---------------------------------------------------------------------------------------- |
-| `my_files/`      | **Read-Only** (App Logic) | User-provided reference documents and data sources.                                       |
-| `model_out_dir/` | **Read / Write** (FS MCP) | The single permitted output directory for generated project files, code, and screenshots. |
-| `config/`        | **System Internal**       | Atomic JSON persistence for models, sessions, and long-term user facts.                   |
+| Directory         | Scope & Permissions       | Purpose                                                                                   |
+| :---------------- | :------------------------ | :---------------------------------------------------------------------------------------- |
+| `Knowledge_base/` | **Read-Only** (App Logic) | User-provided reference documents and data sources.                                       |
+| `model_out_dir/`  | **Read / Write** (FS MCP) | The single permitted output directory for generated project files, code, and screenshots. |
+| `config/`         | **System Internal**       | Atomic JSON persistence for models, sessions, and long-term user facts.                   |
 
-- **Code Execution:** Safe-candidate analysis via AST checks and explicit execution approval prompts.
-- **Credential Protection:** API keys and environment parameters remain isolated in local `.env` files and are never included in persistence structures or output logs.
+- **Hybrid Inference Architecture:** Supports both a privately hosted, fine-tuned model (SFT) and cloud-based OpenAI-compatible endpoints (such as the NVIDIA API). The SFT model is private and not distributed with this repository, so the cloud provider is the default for anyone cloning the project.
+- **Local Context & Document Reference:** Ground prompts using local files (`.pdf`, `.docx`, `.md`, `.txt`, `.csv`, `.json`, code files) stored in `Knowledge_base/` or referenced directly.
 
 ---
 
@@ -90,44 +90,7 @@ AMIGO CLI enforces an explicit access boundary:
 - **Node.js & npx:** Required for starting stdio MCP servers (Playwright & Filesystem)
 - **Tesseract OCR (Optional):** Required if local OCR extraction for images is desired
 
-### Installation
-
-1. **Clone the repository:**
-
-   ```bash
-   git clone https://github.com/your-username/amigo-cli.git
-   cd amigo-cli
-   ```
-
-2. **Set up a virtual environment:**
-
-   ```bash
-   python -m venv venv
-   # On Windows:
-   venv\Scripts\activate
-   # On macOS/Linux:
-   source venv/bin/activate
-   ```
-
-3. **Install dependencies:**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment variables:**
-   Create a `.env` file in the project root:
-
-   ```env
-   NVIDIA_API_KEY=your_api_key_here
-   # AMIGO_ENABLE_GLOBAL_HOTKEY=true  # Optional Windows integration
-   ```
-
-5. **Launch the CLI:**
-   ```bash
-   python main.py
-   ```
-
+> **Note on the local SFT model:** AMIGO CLI was developed with a private fine-tuned model that is not publicly available. To run the project, configure a cloud provider (any OpenAI-compatible endpoint) in your `.env` file. Any compatible local model server can also be used in its place.
 ---
 
 ## 🛠️ Usage & Essential Slash Commands
@@ -142,7 +105,7 @@ AMIGO CLI features a built-in command router for local settings, sessions, and c
 | `/new <name>`        | Sessions   | Create and activate a new conversation session              |
 | `/switch <id\|name>` | Sessions   | Switch active chat session                                  |
 | `/model`             | Config     | Interactively select or configure provider models           |
-| `/files`             | Workspace  | Inspect supported reference files inside `my_files/`        |
+| `/files`             | Workspace  | Inspect supported reference files inside `Knowledge_base/`  |
 | `/screen`            | Multimodal | Capture current display and analyze visual context          |
 | `/multiline`         | Input      | Enter multiline input mode for pasting long text or emails  |
 | `/voice` / `/text`   | Audio      | Toggle between microphone voice recognition and typed input |
@@ -151,7 +114,7 @@ AMIGO CLI features a built-in command router for local settings, sessions, and c
 ### Example Prompts
 
 ```text
-> Read the requirements document in my_files and give me an executive summary.
+> Read the requirements document in Knowledge_base and give me an executive summary.
 > Create a Python web scraper project inside model_out_dir/scraper with src and tests.
 > Take a screenshot of https://news.ycombinator.com using Playwright and summarize the top headline.
 > Read and analyze "C:\Users\username\Documents\report.pdf"
@@ -165,24 +128,14 @@ AMIGO CLI features a built-in command router for local settings, sessions, and c
 amigo-cli/
 │
 ├── main.py                     # Primary Application Coordinator & Event Loop
-├── .mcp.json                   # Model Context Protocol Server Configurations
+├── .mcp                        # Model Context Protocol Server Configurations
 ├── requirements.txt            # Project Python Dependencies
 │
 ├── core/                       # Core Architecture Modules
-│   ├── paths.py                # Stable Workspace Directory Resolution
-│   ├── config_manager.py       # Configuration & State Management
-│   ├── tools.py                # Web Search, Extraction, & Guarded Execution
-│   ├── security.py             # Security Guardrails & AST Verification
-│   ├── orchestrator.py         # Multi-Agent Routing Logic
-│   ├── sub_agent.py            # Parallel Worker Implementations
-│   ├── mcp_client.py           # Async JSON-RPC MCP Bridge
-│   ├── features.py             # Focused Intelligent Feature Suite
-│   └── speech.py               # Speech Recognition & TTS Queue Engine
-│
-├── my_files/                   # User Source Documents (Read-Only Context)
+├── config/                     # Models, sessions, and long-term memory 
+├── Knowledge_base/             # User Source Documents (Read-Only Context)
 └── model_out_dir/              # Bounded Output Root for Generated Artifacts
     └── screenshots/            # Playwright & System Screenshots
-```
 
 ---
 
